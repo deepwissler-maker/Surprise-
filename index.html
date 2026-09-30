@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Une surprise pour toi...</title>
+    <link href="https://fonts.googleapis.com/css2?family=Great+Vibes&family=Playfair+Display:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #050208;
+            --rose-gold: #ffb7c5;
+            --deep-red: #ff3366;
+            --gold: #ffd700;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+            font-family: 'Playfair Display', serif;
+        }
+
+        canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+            pointer-events: none;
+        }
+
+        .container {
+            position: relative;
+            z-index: 10;
+            text-align: center;
+            padding: 40px;
+            transition: opacity 1s ease, transform 1s ease;
+        }
+
+        .container.hidden {
+            opacity: 0;
+            transform: scale(0.9);
+            pointer-events: none;
+        }
+
+        h1 {
+            font-family: 'Great Vibes', cursive;
+            font-size: 4rem;
+            color: var(--rose-gold);
+            text-shadow: 0 0 20px rgba(255, 183, 197, 0.4), 0 0 40px rgba(255, 51, 102, 0.2);
+            margin-bottom: 30px;
+            animation: floatText 4s ease-in-out infinite alternate;
+        }
+
+        @keyframes floatText {
+            0% { transform: translateY(0); }
+            100% { transform: translateY(-10px); }
+        }
+
+        .btn-surprise {
+            background: linear-gradient(135deg, #2a0815, #4a1529);
+            color: var(--rose-gold);
+            border: 2px solid rgba(255, 183, 197, 0.4);
+            padding: 18px 45px;
+            font-size: 1.3rem;
+            font-family: 'Playfair Display', serif;
+            letter-spacing: 2px;
+            border-radius: 50px;
+            cursor: pointer;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6), 0 0 20px rgba(255, 51, 102, 0.2);
+            transition: all 0.4s cubic-bezier(0.165, 0.84, 0.44, 1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn-surprise:hover {
+            background: linear-gradient(135deg, #4a1529, #6a1b38);
+            border-color: var(--rose-gold);
+            transform: translateY(-3px) scale(1.03);
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.8), 0 0 30px rgba(255, 183, 197, 0.4);
+        }
+
+        .btn-surprise:active {
+            transform: translateY(1px) scale(0.98);
+        }
+
+        .final-message {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) scale(0.8);
+            z-index: 20;
+            text-align: center;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 1.5s ease, transform 1.5s ease;
+            width: 100%;
+            padding: 0 20px;
+        }
+
+        .final-message.visible {
+            opacity: 1;
+            transform: translate(-50%, -50%) scale(1);
+        }
+
+        .final-message h2 {
+            font-family: 'Great Vibes', cursive;
+            font-size: 5.5rem;
+            color: #fff;
+            text-shadow: 0 0 30px #ff3366, 0 0 60px #ff3366, 0 0 90px #ffb7c5;
+            letter-spacing: 2px;
+        }
+
+        .sub-hint {
+            position: absolute;
+            bottom: 30px;
+            width: 100%;
+            text-align: center;
+            color: rgba(255, 255, 255, 0.3);
+            font-size: 0.85rem;
+            letter-spacing: 3px;
+            text-transform: uppercase;
+            z-index: 10;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container" id="welcome-box">
+        <h1>J'ai une surprise pour toi</h1>
+        <button class="btn-surprise" id="trigger-btn">Découvrir</button>
+    </div>
+
+    <div class="final-message" id="final-box">
+        <h2>Je t'aime mon amour</h2>
+    </div>
+
+    <div class="sub-hint">Clique n'importe où pour relancer la magie</div>
+
+    <canvas id="fireworksCanvas"></canvas>
+
+    <script>
+        const canvas = document.getElementById('fireworksCanvas');
+        const ctx = canvas.getContext('2d');
+
+        let particles = [];
+        let rockets = [];
+        let stars = [];
+
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        function initStars() {
+            stars = [];
+            for (let i = 0; i < 150; i++) {
+                stars.push({
+                    x: Math.random() * canvas.width,
+                    y: Math.random() * canvas.height,
+                    radius: Math.random() * 1.5,
+                    alpha: Math.random() * 0.7 + 0.3,
+                    twinkleSpeed: Math.random() * 0.02 + 0.005
+                });
+            }
+        }
+        initStars();
+
+        class Rocket {
+            constructor(targetX, targetY, color, isHeart = false, customCallback = null) {
+                this.x = canvas.width / 2 + (Math.random() * 300 - 150);
+                this.y = canvas.height;
+                this.targetX = targetX;
+                this.targetY = targetY;
+                this.color = color;
+                this.speed = 6 + Math.random() * 3;
+                this.angle = Math.atan2(targetY - this.y, targetX - this.x);
+                this.isHeart = isHeart;
+                this.customCallback = customCallback;
+                
+                this.vx = Math.cos(this.angle) * this.speed;
+                this.vy = Math.sin(this.angle) * this.speed;
+            }
+
+            update() {
+                this.x += this.vx;
+                this.y += this.vy;
+
+                if (this.y <= this.targetY) {
+                    this.explode();
+                    return true;
+                }
+                return false;
+            }
+
+            draw() {
+                ctx.save();
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, 2.5, 0, Math.PI * 2);
+                ctx.fillStyle = this.color;
+                ctx.shadowBlur = 10;
+                ctx.shadowColor = this.color;
+                ctx.fill();
+                ctx.restore();
+            }
+
+            explode() {
+                if (this.customCallback) {
+                    this.customCallback();
+                } else if (this.isHeart) {
+                    createHeartExplosion(this.targetX, this.targetY, this.color);
+                } else {
+                    createSphereExplosion(this.targetX, this.targetY, this.color);
+                }
+            }
+        }
+
+        class Particle {
+            constructor(x, y, color, isHeartShape = false, hX = 0, hY = 0) {
+                this.x = x;
+                this.y = y;
+                this.color = color;
+                this.alpha = 1;
+                this.friction = 0.95;
+                this.gravity = 0.05;
+
+                if (isHeartShape) {
+                    this.vx = hX * (Math.random() * 2 + 1);
+                    this.vy = hY * (Math.random() * 2 + 1);
+                    this.decay = Math.random() * 0.007 + 0.005; // Dure encore plus longtemps
+                } else {
+                    const angle = Math.random() * Math.PI * 2;
+                    const speed = Math.random() * 7 + 1;
+                    this.vx = Math.cos(angle) * speed;
+                    this.vy = Math.sin(angle) * speed;
+                    this.decay = Math.random() * 0.012 + 0.01;
+                }
+            }
+
+            update() {
+                this.vx *= this.friction;
+                this.vy *= this.friction;
+                this.vy += this.gravity;
+                this.x += this.vx;
+                this.y += this.vy;
+                this.alpha -= this.decay;
+            }
+
+            draw() {
+                ctx.save();
+                ctx.globalAlpha = Math.max(this.alpha, 0);
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, 2, 0, Math.PI * 2);
+                ctx.fillStyle = this.color;
+                ctx.shadowBlur = 8;
+                ctx.shadowColor = this.color;
+                ctx.fill();
+                ctx.restore();
+            }
+        }
+
+        function createSphereExplosion(x, y, color) {
+            const count = 100;
+            for (let i = 0; i < count; i++) {
+                particles.push(new Particle(x, y, color));
+            }
+        }
+
+        function createHeartExplosion(x, y, color) {
+            const count = 180;
+            for (let i = 0; i < count; i++) {
+                const t = Math.random() * Math.PI * 2;
+                const hX = 16 * Math.pow(Math.sin(t), 3);
+                const hY = -(13 * Math.cos(t) - 5 * Math.cos(2*t) - 2 * Math.cos(3*t) - Math.cos(4*t));
+                particles.push(new Particle(x, y, color, true, hX * 0.13, hY * 0.13));
+            }
+        }
+
+        // Séquence longue, rythmée et immersive (environ 10 secondes de spectacle avant le bouquet final)
+        function launchLongSequence() {
+            const w = canvas.width;
+            const h = canvas.height;
+
+            const timings = [
+                { time: 200,   x: w * 0.3,  y: h * 0.4, color: '#ff3366', heart: false },
+                { time: 700,   x: w * 0.7,  y: h * 0.35, color: '#ffb7c5', heart: false },
+                { time: 1300,  x: w * 0.5,  y: h * 0.3,  color: '#ff1493', heart: true },
+                { time: 2000,  x: w * 0.2,  y: h * 0.45, color: '#ffd700', heart: false },
+                { time: 2500,  x: w * 0.8,  y: h * 0.4,  color: '#da70d6', heart: false },
+                { time: 3200,  x: w * 0.4,  y: h * 0.25, color: '#ff69b4', heart: true },
+                { time: 3800,  x: w * 0.6,  y: h * 0.25, color: '#ffffff', heart: false },
+                { time: 4500,  x: w * 0.25, y: h * 0.35, color: '#ff3366', heart: false },
+                { time: 5000,  x: w * 0.75, y: h * 0.35, color: '#ffd700', heart: true },
+                { time: 5800,  x: w * 0.5,  y: h * 0.35, color: '#ffb7c5', heart: false },
+                { time: 6500,  x: w * 0.3,  y: h * 0.2,  color: '#da70d6', heart: true },
+                { time: 7200,  x: w * 0.7,  y: h * 0.2,  color: '#ff1493', heart: true },
+                { time: 8000,  x: w * 0.2,  y: h * 0.3,  color: '#ffffff', heart: false },
+                { time: 8600,  x: w * 0.8,  y: h * 0.3,  color: '#ff3366', heart: false },
+                { time: 9500,  x: w * 0.5,  y: h * 0.25, color: '#ffd700', heart: true }
+            ];
+
+            timings.forEach(item => {
+                setTimeout(() => {
+                    rockets.push(new Rocket(item.x, item.y, item.color, item.heart));
+                }, item.time);
+            });
+
+            // Bouquet final apothéose à 11 secondes
+            setTimeout(() => {
+                rockets.push(new Rocket(w * 0.35, h * 0.3, '#ff3366', true));
+                rockets.push(new Rocket(w * 0.65, h * 0.3, '#ffb7c5', true));
+                
+                setTimeout(() => {
+                    rockets.push(new Rocket(w * 0.5, h * 0.2, '#ffffff', true, () => {
+                        createHeartExplosion(w * 0.5, h * 0.2, '#ff3366');
+                        createHeartExplosion(w * 0.5, h * 0.2, '#ffd700');
+                        createHeartExplosion(w * 0.5, h * 0.2, '#ffb7c5');
+                        
+                        setTimeout(() => {
+                            document.getElementById('final-box').classList.add('visible');
+                        }, 800);
+                    }));
+                }, 400);
+            }, 11000);
+        }
+
+        document.getElementById('trigger-btn').addEventListener('click', (e) => {
+            e.stopPropagation();
+            document.getElementById('welcome-box').classList.add('hidden');
+            launchLongSequence();
+        });
+
+        window.addEventListener('click', (e) => {
+            const welcomeBox = document.getElementById('welcome-box');
+            if (!welcomeBox.classList.contains('hidden')) return;
+
+            const colors = ['#ff3366', '#ffb7c5', '#ffd700', '#ff69b4', '#ffffff', '#da70d6'];
+            const randomColor = colors[Math.floor(Math.random() * colors.length)];
+            const isHeart = Math.random() > 0.3;
+            
+            rockets.push(new Rocket(e.clientX, e.clientY, randomColor, isHeart));
+        });
+
+        function animate() {
+            ctx.fillStyle = 'rgba(5, 2, 8, 0.2)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            stars.forEach(star => {
+                star.alpha += star.twinkleSpeed;
+                if (star.alpha > 1 || star.alpha < 0.2) {
+                    star.twinkleSpeed = -star.twinkleSpeed;
+                }
+                ctx.fillStyle = `rgba(255, 255, 255, ${star.alpha})`;
+                ctx.beginPath();
+                ctx.arc(star.x, star.y, star.radius, 0, Math.PI * 2);
+                ctx.fill();
+            });
+
+            for (let i = rockets.length - 1; i >= 0; i--) {
+                rockets[i].draw();
+                if (rockets[i].update()) {
+                    rockets.splice(i, 1);
+                }
+            }
+
+            for (let i = particles.length - 1; i >= 0; i--) {
+                particles[i].update();
+                particles[i].draw();
+                if (particles[i].alpha <= 0) {
+                    particles.splice(i, 1);
+                }
+            }
+
+            requestAnimationFrame(animate);
+        }
+
+        animate();
+    </script>
+</body>
+</html>
